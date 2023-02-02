@@ -1,5 +1,8 @@
+using System;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Minio.DataModel;
 
 namespace Minio;
@@ -35,5 +38,30 @@ public partial class MinioClient : IMultipartUploadOperations
             .WithObject(key)
             .WithUploadId(uploadId);
         return RemoveUploadAsync(rmArgs, cancellationToken);
+    }
+
+    public UploadPartSignResult SignMultipartUploadPart(SignObjectPartArgs args)
+    {
+        if (args.PartNumber < 0)
+        {
+            throw new ArgumentException("partNum can not less than `0`");
+        }
+
+        var putObjectArgs = new PutObjectArgs
+        {
+            RequestMethod = HttpMethod.Put,
+            BucketName = args.BucketName,
+            ContentType = args.ContentType ?? "application/octet-stream",
+            FileName = args.FileName,
+            Headers = args.Headers,
+            ObjectName = args.ObjectName,
+            ObjectSize = args.ObjectSize,
+            PartNumber = args.PartNumber,
+            SSE = args.SSE,
+            UploadId = args.UploadId
+        };
+
+        var res = new UploadPartSignResult();
+        return res;
     }
 }

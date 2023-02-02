@@ -1,5 +1,6 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
+
 using Minio.DataModel;
 
 namespace Minio;
@@ -11,4 +12,6 @@ public interface IMultipartUploadOperations
 
     Task AbortMultipartUploadAsync(string bucketName, string key, string uploadId,
         CancellationToken cancellationToken = default);
+
+    UploadPartSignResult SignMultipartUploadPart(SignObjectPartArgs args);
 }

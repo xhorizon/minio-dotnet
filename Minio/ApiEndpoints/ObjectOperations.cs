@@ -27,6 +27,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using System.Xml.Serialization;
+
 using Minio.DataModel;
 using Minio.DataModel.ObjectLock;
 using Minio.DataModel.Tags;
@@ -59,7 +60,6 @@ public partial class MinioClient : IObjectOperations
         return getObjectHelper(args, cancellationToken);
     }
 
-
     /// <summary>
     ///     Select an object's content. The object will be streamed to the callback given by the user.
     /// </summary>
@@ -84,7 +84,6 @@ public partial class MinioClient : IObjectOperations
             new SelectObjectContentResponse(response.StatusCode, response.Content, response.ContentBytes);
         return selectObjectContentResponse.ResponseStream;
     }
-
 
     /// <summary>
     ///     Lists all incomplete uploads in a given bucket and prefix recursively
@@ -132,7 +131,6 @@ public partial class MinioClient : IObjectOperations
             });
     }
 
-
     /// <summary>
     ///     Remove incomplete uploads from a given bucket and objectName
     /// </summary>
@@ -176,7 +174,6 @@ public partial class MinioClient : IObjectOperations
             }
     }
 
-
     /// <summary>
     ///     Presigned get url - returns a presigned url to access an object's data without credentials.URL can have a maximum
     ///     expiry of
@@ -200,7 +197,6 @@ public partial class MinioClient : IObjectOperations
             SessionToken);
         return authenticator.PresignURL(requestMessageBuilder, args.Expiry, Region, SessionToken, args.RequestDate);
     }
-
 
     /// <summary>
     ///     Presigned post policy
@@ -238,7 +234,6 @@ public partial class MinioClient : IObjectOperations
             .WithCredential(credential)
             .WithRegion(region);
 
-
         // Fill in the form data.
         args.Policy.formData["bucket"] = args.BucketName;
         // args.Policy.formData["key"] = "\\\"" + args.ObjectName + "\\\"";
@@ -255,7 +250,6 @@ public partial class MinioClient : IObjectOperations
         uri = RequestUtil.MakeTargetURL(BaseUrl, Secure, args.BucketName, region, false);
         return (uri, args.Policy.formData);
     }
-
 
     /// <summary>
     ///     Presigned Put url -returns a presigned url to upload an object without credentials.URL can have a maximum expiry of
@@ -312,7 +306,6 @@ public partial class MinioClient : IObjectOperations
             : legalHoldConfig.CurrentLegalHoldConfiguration.Status.ToLower().Equals("on");
     }
 
-
     /// <summary>
     ///     Set the Legal Hold Status using the related configuration
     /// </summary>
@@ -339,7 +332,6 @@ public partial class MinioClient : IObjectOperations
             .ConfigureAwait(false);
     }
 
-
     /// <summary>
     ///     Gets Tagging values set for this object
     /// </summary>
@@ -362,7 +354,6 @@ public partial class MinioClient : IObjectOperations
         return getObjectTagsResponse.ObjectTags;
     }
 
-
     /// <summary>
     ///     Removes an object with given name in specific bucket
     /// </summary>
@@ -384,7 +375,6 @@ public partial class MinioClient : IObjectOperations
         var requestMessageBuilder = await CreateRequest(args).ConfigureAwait(false);
         using var restResponse = await ExecuteTaskAsync(NoErrorHandlers, requestMessageBuilder, cancellationToken);
     }
-
 
     /// <summary>
     ///     Removes list of objects from bucket
@@ -421,7 +411,6 @@ public partial class MinioClient : IObjectOperations
         );
     }
 
-
     /// <summary>
     ///     Sets the Tagging values for this object
     /// </summary>
@@ -446,7 +435,6 @@ public partial class MinioClient : IObjectOperations
             .ConfigureAwait(false);
     }
 
-
     /// <summary>
     ///     Removes Tagging values stored for the object
     /// </summary>
@@ -467,7 +455,6 @@ public partial class MinioClient : IObjectOperations
         using var response = await ExecuteTaskAsync(NoErrorHandlers, requestMessageBuilder, cancellationToken)
             .ConfigureAwait(false);
     }
-
 
     /// <summary>
     ///     Set the Retention using the configuration object
@@ -494,7 +481,6 @@ public partial class MinioClient : IObjectOperations
         using var response = await ExecuteTaskAsync(NoErrorHandlers, requestMessageBuilder, cancellationToken)
             .ConfigureAwait(false);
     }
-
 
     /// <summary>
     ///     Get the Retention configuration for the object
@@ -523,7 +509,6 @@ public partial class MinioClient : IObjectOperations
         return retentionResponse.CurrentRetentionConfiguration;
     }
 
-
     /// <summary>
     ///     Clears the Retention configuration for the object
     /// </summary>
@@ -549,7 +534,6 @@ public partial class MinioClient : IObjectOperations
         using var response = await ExecuteTaskAsync(NoErrorHandlers, requestMessageBuilder, cancellationToken)
             .ConfigureAwait(false);
     }
-
 
     /// <summary>
     ///     Creates object in a bucket fom input stream or filename.
@@ -640,7 +624,6 @@ public partial class MinioClient : IObjectOperations
             .WithETags(etags);
         await CompleteMultipartUploadAsync(completeMultipartUploadArgs, cancellationToken).ConfigureAwait(false);
     }
-
 
     /// <summary>
     ///     Copy a source object into a new destination object.
@@ -750,7 +733,6 @@ public partial class MinioClient : IObjectOperations
         return PresignedPostPolicyAsync(args);
     }
 
-
     /// <summary>
     ///     Tests the object's existence and returns metadata about existing objects.
     /// </summary>
@@ -793,7 +775,6 @@ public partial class MinioClient : IObjectOperations
             .WithServerSideEncryption(sse);
         return GetObjectAsync(args, cancellationToken);
     }
-
 
     /// <summary>
     ///     Get an object. The object will be streamed to the callback given by the user.
@@ -840,7 +821,6 @@ public partial class MinioClient : IObjectOperations
             .WithServerSideEncryption(sse);
         return GetObjectAsync(args, cancellationToken);
     }
-
 
     /// <summary>
     ///     Select an object's content. The object will be streamed to the callback given by the user.
@@ -918,7 +898,6 @@ public partial class MinioClient : IObjectOperations
         return PutObjectAsync(args, cancellationToken);
     }
 
-
     /// <summary>
     ///     Lists all incomplete uploads in a given bucket and prefix recursively
     /// </summary>
@@ -978,7 +957,6 @@ public partial class MinioClient : IObjectOperations
             .WithObject(objectName);
         return RemoveObjectAsync(args, cancellationToken);
     }
-
 
     /// <summary>
     ///     Removes multiple objects from a specific bucket
@@ -1099,7 +1077,6 @@ public partial class MinioClient : IObjectOperations
         return PresignedPutObjectAsync(args);
     }
 
-
     /// <summary>
     ///     Get list of multi-part uploads matching particular uploadIdMarker
     /// </summary>
@@ -1121,7 +1098,6 @@ public partial class MinioClient : IObjectOperations
         return getUploadResponse.UploadResult;
     }
 
-
     /// <summary>
     ///     Remove object with matching uploadId from bucket
     /// </summary>
@@ -1135,7 +1111,6 @@ public partial class MinioClient : IObjectOperations
         using var response = await ExecuteTaskAsync(NoErrorHandlers, requestMessageBuilder, cancellationToken)
             .ConfigureAwait(false);
     }
-
 
     /// <summary>
     ///     Upload object part to bucket for particular uploadId
@@ -1163,7 +1138,6 @@ public partial class MinioClient : IObjectOperations
         var putObjectResponse = new PutObjectResponse(response.StatusCode, response.Content, response.Headers);
         return putObjectResponse.Etag;
     }
-
 
     /// <summary>
     ///     Upload object in multiple parts. Private Helper function
@@ -1205,7 +1179,7 @@ public partial class MinioClient : IObjectOperations
             var etag = await PutObjectSinglePartAsync(putObjectArgs, cancellationToken).ConfigureAwait(false);
             numPartsUploaded += 1;
             totalParts[partNumber - 1] = new Part
-                { PartNumber = partNumber, ETag = etag, Size = (long)expectedReadSize };
+            { PartNumber = partNumber, ETag = etag, Size = (long)expectedReadSize };
             etags[partNumber] = etag;
         }
 
@@ -1222,7 +1196,6 @@ public partial class MinioClient : IObjectOperations
 
         return etags;
     }
-
 
     /// <summary>
     ///     Make a multi part copy upload for objects larger than 5GB or if CopyCondition specifies a byte range.
@@ -1295,7 +1268,7 @@ public partial class MinioClient : IObjectOperations
                 (CopyPartResult)await CopyObjectRequestAsync(cpPartArgs, cancellationToken).ConfigureAwait(false);
 
             totalParts[partNumber - 1] = new Part
-                { PartNumber = partNumber, ETag = cpPartResult.ETag, Size = (long)expectedReadSize };
+            { PartNumber = partNumber, ETag = cpPartResult.ETag, Size = (long)expectedReadSize };
         }
 
         var etags = new Dictionary<int, string>();
@@ -1306,7 +1279,6 @@ public partial class MinioClient : IObjectOperations
         // Complete multi part upload
         await CompleteMultipartUploadAsync(completeMultipartUploadArgs, cancellationToken).ConfigureAwait(false);
     }
-
 
     /// <summary>
     ///     Start a new multi-part upload request
@@ -1358,7 +1330,6 @@ public partial class MinioClient : IObjectOperations
         return uploadResponse.UploadId;
     }
 
-
     /// <summary>
     ///     Create the copy request, execute it and return the copy result.
     /// </summary>
@@ -1374,7 +1345,6 @@ public partial class MinioClient : IObjectOperations
             new CopyObjectResponse(response.StatusCode, response.Content, args.CopyOperationObjectType);
         return copyObjectResponse.CopyPartRequestResult;
     }
-
 
     /// <summary>
     ///     Internal method to complete multi part upload of object to server.
@@ -1492,14 +1462,14 @@ public partial class MinioClient : IObjectOperations
         var root = XDocument.Parse(response.Content);
 
         var uploads = from c in root.Root.Descendants("{http://s3.amazonaws.com/doc/2006-03-01/}Part")
-            select new Part
-            {
-                PartNumber = int.Parse(c.Element("{http://s3.amazonaws.com/doc/2006-03-01/}PartNumber").Value,
-                    CultureInfo.CurrentCulture),
-                ETag = c.Element("{http://s3.amazonaws.com/doc/2006-03-01/}ETag").Value.Replace("\"", string.Empty),
-                Size = long.Parse(c.Element("{http://s3.amazonaws.com/doc/2006-03-01/}Size").Value,
-                    CultureInfo.CurrentCulture)
-            };
+                      select new Part
+                      {
+                          PartNumber = int.Parse(c.Element("{http://s3.amazonaws.com/doc/2006-03-01/}PartNumber").Value,
+                              CultureInfo.CurrentCulture),
+                          ETag = c.Element("{http://s3.amazonaws.com/doc/2006-03-01/}ETag").Value.Replace("\"", string.Empty),
+                          Size = long.Parse(c.Element("{http://s3.amazonaws.com/doc/2006-03-01/}Size").Value,
+                              CultureInfo.CurrentCulture)
+                      };
 
         return Tuple.Create(listPartsResult, uploads.ToList());
     }
