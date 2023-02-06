@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text;
 using System.Xml.Serialization;
-
 using Minio.DataModel.ObjectLock;
 
 namespace Minio.DataModel;
@@ -89,62 +89,132 @@ public class CreateMultipartUploadResponse : GenericResponse
     public string UploadId { get; }
 }
 
-public class SignObjectPartArgs : PutObjectArgs
+public class SignObjectPartArgs : ObjectWriteArgs<SignObjectPartArgs>
 {
     public SignObjectPartArgs()
     {
         RequestMethod = HttpMethod.Put;
+        RequestBody = null;
+        PartNumber = 0;
+        ContentType = "application/octet-stream";
     }
+
+    public string UploadId { get;  set; }
+    public int PartNumber { get; set; }
+    public string FileName { get; set; }
+    public long ObjectSize { get; set; }
 
     internal override void Validate()
     {
         base.Validate();
+        // Check atleast one of filename or stream are initialized
+        if (string.IsNullOrWhiteSpace(FileName))
+            throw new ArgumentException(nameof(FileName) +
+                                        " must be set.");
+        if (PartNumber < 0)
+            throw new ArgumentOutOfRangeException(nameof(PartNumber), PartNumber,
+                "Invalid Part number value. Cannot be less than 0");
+
+        if (!string.IsNullOrWhiteSpace(FileName)) utils.ValidateFile(FileName);
+        // Check object size when using stream data
+
+        Populate();
         if (string.IsNullOrWhiteSpace(UploadId))
             throw new ArgumentNullException(nameof(UploadId) + " not assigned for PutObjectPart operation.");
     }
 
-    public new PutObjectPartArgs WithBucket(string bkt)
+    private void Populate()
     {
-        return (PutObjectPartArgs)base.WithBucket(bkt);
-    }
-
-    public new PutObjectPartArgs WithObject(string obj)
-    {
-        return (PutObjectPartArgs)base.WithObject(obj);
-    }
-
-    public new PutObjectPartArgs WithObjectSize(long size)
-    {
-        return (PutObjectPartArgs)base.WithObjectSize(size);
-    }
-
-    public new PutObjectPartArgs WithHeaders(Dictionary<string, string> hdr)
-    {
-        return (PutObjectPartArgs)base.WithHeaders(hdr);
-    }
-
-    public PutObjectPartArgs WithRequestBody(object data)
-    {
-        return (PutObjectPartArgs)base.WithRequestBody(utils.ObjectToByteArray(data));
-    }
-
-    public new PutObjectPartArgs WithStreamData(Stream data)
-    {
-        return (PutObjectPartArgs)base.WithStreamData(data);
-    }
-
-    public new PutObjectPartArgs WithContentType(string type)
-    {
-        return (PutObjectPartArgs)base.WithContentType(type);
-    }
-
-    public new PutObjectPartArgs WithUploadId(string id)
-    {
-        return (PutObjectPartArgs)base.WithUploadId(id);
     }
 
     internal override HttpRequestMessageBuilder BuildRequest(HttpRequestMessageBuilder requestMessageBuilder)
     {
+        requestMessageBuilder = base.BuildRequest(requestMessageBuilder);
+        if (string.IsNullOrWhiteSpace(ContentType)) ContentType = "application/octet-stream";
+        if (!Headers.ContainsKey("Content-Type")) Headers["Content-Type"] = ContentType;
+
+        requestMessageBuilder.AddOrUpdateHeaderParameter("Content-Type", Headers["Content-Type"]);
+        if (!string.IsNullOrWhiteSpace(UploadId) && PartNumber > 0)
+        {
+            requestMessageBuilder.AddQueryParameter("uploadId", $"{UploadId}");
+            requestMessageBuilder.AddQueryParameter("partNumber", $"{PartNumber}");
+        }
+
+        if (ObjectTags != null && ObjectTags.TaggingSet != null
+                               && ObjectTags.TaggingSet.Tag.Count > 0)
+            requestMessageBuilder.AddOrUpdateHeaderParameter("x-amz-tagging", ObjectTags.GetTagString());
+        if (Retention != null)
+        {
+            requestMessageBuilder.AddOrUpdateHeaderParameter("x-amz-object-lock-retain-until-date",
+                Retention.RetainUntilDate);
+            requestMessageBuilder.AddOrUpdateHeaderParameter("x-amz-object-lock-mode", Retention.Mode.ToString());
+            requestMessageBuilder.AddOrUpdateHeaderParameter("Content-Md5",
+                utils.getMD5SumStr(RequestBody));
+        }
+
+        if (LegalHoldEnabled != null)
+            requestMessageBuilder.AddOrUpdateHeaderParameter("x-amz-object-lock-legal-hold",
+                LegalHoldEnabled == true ? "ON" : "OFF");
+        if (RequestBody != null)
+        {
+            var sha256 = SHA256.Create();
+            var hash = sha256.ComputeHash(RequestBody);
+            var hex = BitConverter.ToString(hash).Replace("-", string.Empty).ToLower();
+            requestMessageBuilder.AddOrUpdateHeaderParameter("x-amz-content-sha256", hex);
+            requestMessageBuilder.SetBody(RequestBody);
+        }
+
         return requestMessageBuilder;
+    }
+
+    public new SignObjectPartArgs WithHeaders(Dictionary<string, string> metaData)
+    {
+        var sseHeaders = new Dictionary<string, string>();
+        Headers = Headers ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (metaData != null)
+            foreach (var p in metaData)
+            {
+                var key = p.Key;
+                if (!OperationsUtil.IsSupportedHeader(p.Key) &&
+                    !p.Key.StartsWith("x-amz-meta-", StringComparison.OrdinalIgnoreCase) &&
+                    !OperationsUtil.IsSSEHeader(p.Key))
+                {
+                    key = "x-amz-meta-" + key.ToLowerInvariant();
+                    Headers.Remove(p.Key);
+                }
+
+                Headers[key] = p.Value;
+                if (key == "Content-Type")
+                    ContentType = p.Value;
+            }
+
+        if (string.IsNullOrWhiteSpace(ContentType)) ContentType = "application/octet-stream";
+        if (!Headers.ContainsKey("Content-Type")) Headers["Content-Type"] = ContentType;
+        return this;
+    }
+
+
+    internal SignObjectPartArgs WithUploadId(string id = null)
+    {
+        UploadId = id;
+        return this;
+    }
+
+    internal SignObjectPartArgs WithPartNumber(int num)
+    {
+        PartNumber = num;
+        return this;
+    }
+
+    public SignObjectPartArgs WithFileName(string file)
+    {
+        FileName = file;
+        return this;
+    }
+
+    public SignObjectPartArgs WithObjectSize(long size)
+    {
+        ObjectSize = size;
+        return this;
     }
 }

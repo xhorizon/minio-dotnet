@@ -1,8 +1,6 @@
 using System;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-
 using Minio.DataModel;
 
 namespace Minio;
@@ -40,28 +38,28 @@ public partial class MinioClient : IMultipartUploadOperations
         return RemoveUploadAsync(rmArgs, cancellationToken);
     }
 
-    public UploadPartSignResult SignMultipartUploadPart(SignObjectPartArgs args)
+    public async Task<UploadPartSignResult> SignMultipartUploadPart(SignObjectPartArgs args)
     {
         if (args.PartNumber < 0)
         {
             throw new ArgumentException("partNum can not less than `0`");
         }
 
-        var putObjectArgs = new PutObjectArgs
-        {
-            RequestMethod = HttpMethod.Put,
-            BucketName = args.BucketName,
-            ContentType = args.ContentType ?? "application/octet-stream",
-            FileName = args.FileName,
-            Headers = args.Headers,
-            ObjectName = args.ObjectName,
-            ObjectSize = args.ObjectSize,
-            PartNumber = args.PartNumber,
-            SSE = args.SSE,
-            UploadId = args.UploadId
-        };
-
-        var res = new UploadPartSignResult();
+        ArgsCheck(args);
+        
+        
+        var requestMessageBuilder = await CreateRequest(args).ConfigureAwait(false);
+        
+       // var startTime = DateTime.Now;
+        var v4Authenticator = new V4Authenticator(Secure,
+            AccessKey, SecretKey, Region,
+            SessionToken);
+        requestMessageBuilder.AddOrUpdateHeaderParameter("Authorization",
+            v4Authenticator.Authenticate(requestMessageBuilder));
+        
+        var request = requestMessageBuilder.Request;
+        
+        var res = new UploadPartSignResult(request);
         return res;
     }
 }

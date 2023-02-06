@@ -13,5 +13,5 @@ public interface IMultipartUploadOperations
     Task AbortMultipartUploadAsync(string bucketName, string key, string uploadId,
         CancellationToken cancellationToken = default);
 
-    UploadPartSignResult SignMultipartUploadPart(SignObjectPartArgs args);
+    Task<UploadPartSignResult> SignMultipartUploadPart(SignObjectPartArgs args);
 }

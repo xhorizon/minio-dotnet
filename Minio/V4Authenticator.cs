@@ -517,6 +517,7 @@ internal class V4Authenticator
         if (requestBuilder.Method == HttpMethod.Post)
             isMultiDeleteRequest =
                 requestBuilder.QueryParameters.Any(p => p.Key.Equals("delete", StringComparison.OrdinalIgnoreCase));
+
         if ((isSecure && !isSts) || isMultiDeleteRequest)
         {
             requestBuilder.AddOrUpdateHeaderParameter("x-amz-content-sha256", "UNSIGNED-PAYLOAD");
@@ -527,17 +528,20 @@ internal class V4Authenticator
         if (requestBuilder.Method.Equals(HttpMethod.Put) ||
             requestBuilder.Method.Equals(HttpMethod.Post))
         {
-            var body = requestBuilder.Content;
-            if (body == null)
+            if (!requestBuilder.HeaderParameters.TryGetValue("x-amz-content-sha256", out _))
             {
-                requestBuilder.AddOrUpdateHeaderParameter("x-amz-content-sha256", sha256EmptyFileHash);
-                return;
-            }
+                var body = requestBuilder.Content;
+                if (body == null)
+                {
+                    requestBuilder.AddOrUpdateHeaderParameter("x-amz-content-sha256", sha256EmptyFileHash);
+                    return;
+                }
 
-            var sha256 = SHA256.Create();
-            var hash = sha256.ComputeHash(body);
-            var hex = BitConverter.ToString(hash).Replace("-", string.Empty).ToLower();
-            requestBuilder.AddOrUpdateHeaderParameter("x-amz-content-sha256", hex);
+                var sha256 = SHA256.Create();
+                var hash = sha256.ComputeHash(body);
+                var hex = BitConverter.ToString(hash).Replace("-", string.Empty).ToLower();
+                requestBuilder.AddOrUpdateHeaderParameter("x-amz-content-sha256", hex);
+            }
         }
         else if (!isSecure && requestBuilder.Content != null)
         {
@@ -549,7 +553,10 @@ internal class V4Authenticator
         }
         else
         {
-            requestBuilder.AddOrUpdateHeaderParameter("x-amz-content-sha256", sha256EmptyFileHash);
+            if (!requestBuilder.HeaderParameters.TryGetValue("x-amz-content-sha256", out _))
+            {
+                requestBuilder.AddOrUpdateHeaderParameter("x-amz-content-sha256", sha256EmptyFileHash);
+            }
         }
     }
 }
