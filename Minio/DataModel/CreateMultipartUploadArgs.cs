@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
+using System.Xml.Linq;
 using System.Xml.Serialization;
 using Minio.DataModel.ObjectLock;
 
@@ -87,6 +88,58 @@ public class CreateMultipartUploadResponse : GenericResponse
     }
 
     public string UploadId { get; }
+}
+
+public class FinishedMultipartUploadArgs : ObjectWriteArgs<FinishedMultipartUploadArgs>
+{
+    internal FinishedMultipartUploadArgs()
+    {
+        RequestMethod = HttpMethod.Post;
+    }
+
+    public string UploadId { get; set; }
+    public Dictionary<int, string> ETags { get; set; }
+
+    internal override void Validate()
+    {
+        base.Validate();
+        if (string.IsNullOrWhiteSpace(UploadId))
+            throw new ArgumentNullException(nameof(UploadId) + " cannot be empty.");
+        if (ETags == null || ETags.Count <= 0)
+            throw new InvalidOperationException(nameof(ETags) + " dictionary cannot be empty.");
+    }
+
+    public FinishedMultipartUploadArgs WithUploadId(string uploadId)
+    {
+        UploadId = uploadId;
+        return this;
+    }
+
+    public FinishedMultipartUploadArgs WithETags(Dictionary<int, string> etags)
+    {
+        if (etags != null && etags.Count > 0) ETags = new Dictionary<int, string>(etags);
+        return this;
+    }
+
+    internal override HttpRequestMessageBuilder BuildRequest(HttpRequestMessageBuilder requestMessageBuilder)
+    {
+        requestMessageBuilder.AddQueryParameter("uploadId", $"{UploadId}");
+        var parts = new List<XElement>();
+
+        for (var i = 1; i <= ETags.Count; i++)
+            parts.Add(new XElement("Part",
+                new XElement("PartNumber", i),
+                new XElement("ETag", ETags[i])));
+        var completeMultipartUploadXml = new XElement("CompleteMultipartUpload", parts);
+        var bodyString = completeMultipartUploadXml.ToString();
+        var body = Encoding.UTF8.GetBytes(bodyString);
+        var bodyInBytes = Encoding.UTF8.GetBytes(bodyString);
+        requestMessageBuilder.BodyParameters.Add("content-type", "application/xml");
+        requestMessageBuilder.SetBody(bodyInBytes);
+        // var bodyInCharArr = Encoding.UTF8.GetString(requestMessageBuilder.Content).ToCharArray();
+
+        return requestMessageBuilder;
+    }
 }
 
 public class SignObjectPartArgs : ObjectWriteArgs<SignObjectPartArgs>

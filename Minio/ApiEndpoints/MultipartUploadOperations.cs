@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Minio.DataModel;
@@ -40,9 +43,9 @@ public partial class MinioClient : IMultipartUploadOperations
 
     public async Task<UploadPartSignResult> SignMultipartUploadPart(SignObjectPartArgs args)
     {
-        if (args.PartNumber < 0)
+        if (args.PartNumber <= 0)
         {
-            throw new ArgumentException("partNum can not less than `0`");
+            throw new ArgumentException("partNum can not <= `0`");
         }
 
         ArgsCheck(args);
@@ -65,5 +68,30 @@ public partial class MinioClient : IMultipartUploadOperations
         };
 
         return res;
+    }
+
+    public Task FinishedMultipartUploadAsync(FinishedMultipartUploadArgs args,
+        CancellationToken cancellationToken = default)
+    {
+        var aa = new CompleteMultipartUploadArgs
+        {
+            UploadId = args.UploadId,
+            // destBucketName, destObjectName, metadata, sseHeaders
+            RequestMethod = HttpMethod.Post,
+            BucketName = args.BucketName,
+            ObjectName = args.ObjectName,
+            Headers = new Dictionary<string, string>(),
+            SSE = args.SSE,
+        };
+        
+        aa.SSE?.Marshal(args.Headers);
+        
+        if (args.Headers is { Count: > 0 })
+        {
+            aa.Headers = aa.Headers.Concat(args.Headers).GroupBy(item => item.Key)
+                .ToDictionary(item => item.Key, item => item.First().Value);
+        }
+
+        return CompleteMultipartUploadAsync(aa, cancellationToken);
     }
 }
