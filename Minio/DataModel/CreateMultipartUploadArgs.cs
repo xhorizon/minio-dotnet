@@ -99,7 +99,7 @@ public class SignObjectPartArgs : ObjectWriteArgs<SignObjectPartArgs>
         ContentType = "application/octet-stream";
     }
 
-    public string UploadId { get;  set; }
+    public string UploadId { get; set; }
     public int PartNumber { get; set; }
     public string FileName { get; set; }
     public long ObjectSize { get; set; }
@@ -193,6 +193,11 @@ public class SignObjectPartArgs : ObjectWriteArgs<SignObjectPartArgs>
         return this;
     }
 
+    public SignObjectPartArgs WithContentSha256(string sha)
+    {
+        Headers["x-amz-content-sha256"] = sha;
+        return this;
+    }
 
     public SignObjectPartArgs WithUploadId(string id = null)
     {

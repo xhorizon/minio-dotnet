@@ -43,4 +43,20 @@ public class MultipartUploadTest
             Assert.IsTrue(!string.Equals(resp.UploadId, cc.UploadId, StringComparison.OrdinalIgnoreCase));
         });
     }
+    [TestMethod]
+    public async Task MMM()
+    {
+        var client = new MinioClient()
+            .WithEndpoint("192.168.100.200:9000").WithSSL(false)
+            .WithCredentials("1Fx0JFU1TK3pHigQ",
+                "8JPG1rDIqXGZJOW9rhNQ5CCwjHJNfwWJ")
+            .Build();
+        // var buks =await client.ListBucketsAsync();
+        var bucket = "test";
+        var objectName = "D9A7A399-3D9C-4021-B79B-136D15B586DD";
+        var f = @"E:\Download\rustup-init.exe";
+        var arg = new PutObjectArgs();
+        arg.WithBucket(bucket).WithObject(objectName).WithFileName(f);
+        await client.PutObjectAsync(arg);
+    }
 }

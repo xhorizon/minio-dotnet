@@ -1,20 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net.Http;
-using System.Net.Http.Headers;
 
 namespace Minio.DataModel;
 
 public class UploadPartSignResult
 {
-    public HttpMethod Method => _message.Method;
-    public Uri RequestUri => _message.RequestUri;
-    public HttpHeaders Headers => _message.Headers;
-
-    public HttpRequestMessage Raw => _message;
-    private readonly HttpRequestMessage _message;
-
-    public UploadPartSignResult(HttpRequestMessage message)
-    {
-        _message = message;
-    }
+    public HttpMethod Method { get; set; } = HttpMethod.Put;
+    public Uri RequestUri { get; set; }
+    public Dictionary<string, string> Headers { get; set; }
 }

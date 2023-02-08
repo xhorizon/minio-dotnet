@@ -46,20 +46,24 @@ public partial class MinioClient : IMultipartUploadOperations
         }
 
         ArgsCheck(args);
-        
-        
+
+
         var requestMessageBuilder = await CreateRequest(args).ConfigureAwait(false);
-        
-       // var startTime = DateTime.Now;
+
+        // var startTime = DateTime.Now;
         var v4Authenticator = new V4Authenticator(Secure,
             AccessKey, SecretKey, Region,
             SessionToken);
         requestMessageBuilder.AddOrUpdateHeaderParameter("Authorization",
             v4Authenticator.Authenticate(requestMessageBuilder));
-        
-        var request = requestMessageBuilder.Request;
-        
-        var res = new UploadPartSignResult(request);
+
+        var res = new UploadPartSignResult
+        {
+            Headers = requestMessageBuilder.HeaderParameters,
+            RequestUri = requestMessageBuilder.RequestUri,
+            Method = requestMessageBuilder.Method
+        };
+
         return res;
     }
 }
