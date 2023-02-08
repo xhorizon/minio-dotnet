@@ -194,13 +194,13 @@ public class SignObjectPartArgs : ObjectWriteArgs<SignObjectPartArgs>
     }
 
 
-    internal SignObjectPartArgs WithUploadId(string id = null)
+    public SignObjectPartArgs WithUploadId(string id = null)
     {
         UploadId = id;
         return this;
     }
 
-    internal SignObjectPartArgs WithPartNumber(int num)
+    public SignObjectPartArgs WithPartNumber(int num)
     {
         PartNumber = num;
         return this;
