@@ -92,13 +92,13 @@ public class CreateMultipartUploadResponse : GenericResponse
 
 public class FinishedMultipartUploadArgs : ObjectWriteArgs<FinishedMultipartUploadArgs>
 {
-    internal FinishedMultipartUploadArgs()
+    public FinishedMultipartUploadArgs()
     {
         RequestMethod = HttpMethod.Post;
     }
 
     public string UploadId { get; set; }
-    public Dictionary<int, string> ETags { get; set; }
+    public Dictionary<int, string> ETags { get; set; } = new();
 
     internal override void Validate()
     {

@@ -83,6 +83,8 @@ public partial class MinioClient : IMultipartUploadOperations
             Headers = new Dictionary<string, string>(),
             SSE = args.SSE,
         };
+
+        aa.WithETags(args.ETags);
         
         aa.SSE?.Marshal(args.Headers);
         
