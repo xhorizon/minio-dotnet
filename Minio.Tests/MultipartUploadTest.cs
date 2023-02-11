@@ -81,14 +81,14 @@ public class MultipartUploadTest
         Assert.IsTrue(resp.ResponseStatusCode == HttpStatusCode.OK);
 
         var uploadId = resp.UploadId;
-        var eTagList = new List<IMultipartUploadPart>();
+        var eTagList = new List<MultipartUploadPart>();
         const int chunkSize = 8 * 1024 * 1024;
         var buffer = new byte[chunkSize];
-        var totalBytesRead = 0;
-        var bytesRead = 0;
+        // var totalBytesRead = 0;
         var pn = 0;
         using (var fs = File.OpenRead(file))
         {
+            var bytesRead = 0;
             while ((bytesRead = await fs.ReadAsync(buffer, 0, buffer.Length)) > 0)
             {
                 pn++;
@@ -124,7 +124,7 @@ public class MultipartUploadTest
                 Assert.IsTrue(pRes.IsSuccessStatusCode);
                 var h2 = pRes.Headers.TryGetValues("ETag", out var etag);
                 Assert.IsTrue(h2);
-                var mp = new Multipart
+                var mp = new MultipartUploadPart
                 {
                     PartNum = pn,
                     ETag = etag.First(),
@@ -143,7 +143,7 @@ public class MultipartUploadTest
             Assert.IsTrue(rrr.StatusCode == HttpStatusCode.OK);
             var compETag = rrr.ETag.Trim('"');
             var sb = new StringBuilder();
-            foreach (var et in eTagList.OrderBy(c=>c.PartNum))
+            foreach (var et in eTagList.OrderBy(c => c.PartNum))
             {
                 sb.Append(et.ETag.Trim('"'));
             }
@@ -157,9 +157,9 @@ public class MultipartUploadTest
                 ch = $"{ch}-{eTagList.Count}";
                 Assert.IsTrue(compETag.Equals(ch, StringComparison.OrdinalIgnoreCase));
             }
-            
         }
     }
+
     /// <summary>
     /// 16进制字符串转byte数组
     /// </summary>
@@ -174,8 +174,10 @@ public class MultipartUploadTest
             var i = Convert.ToInt32(hexString.Substring(x * 2, 2), 16);
             bytes[x] = (byte)i;
         }
+
         return bytes;
     }
+
     private string GetSha256Str(byte[] buf)
     {
         using (var sh = SHA256.Create())
@@ -185,12 +187,6 @@ public class MultipartUploadTest
         }
     }
 
-
-    class Multipart : IMultipartUploadPart
-    {
-        public int PartNum { get; set; } = -1;
-        public string ETag { get; set; } = string.Empty;
-    }
 
     [TestMethod]
     public async Task MMM()

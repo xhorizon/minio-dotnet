@@ -91,10 +91,10 @@ public class CreateMultipartUploadResponse : GenericResponse
     public string UploadId { get; }
 }
 
-public interface IMultipartUploadPart
+public class MultipartUploadPart
 {
-    public int PartNum { get; }
-    public string ETag { get; }
+    public int PartNum { get; set; }
+    public string ETag { get; set; }
 }
 
 public class FinishedMultipartUploadArgs : ObjectWriteArgs<FinishedMultipartUploadArgs>
@@ -106,7 +106,7 @@ public class FinishedMultipartUploadArgs : ObjectWriteArgs<FinishedMultipartUplo
 
     public string UploadId { get; set; }
 
-    public List<IMultipartUploadPart> Parts { get; set; }
+    public List<MultipartUploadPart> Parts { get; set; }
 
     internal override void Validate()
     {
@@ -123,11 +123,11 @@ public class FinishedMultipartUploadArgs : ObjectWriteArgs<FinishedMultipartUplo
         return this;
     }
 
-    public FinishedMultipartUploadArgs WithParts(IList<IMultipartUploadPart> parts)
+    public FinishedMultipartUploadArgs WithParts(IList<MultipartUploadPart> parts)
     {
         if (parts is { Count: > 0 })
         {
-            Parts = new List<IMultipartUploadPart>(parts);
+            Parts = new List<MultipartUploadPart>(parts);
         }
 
         return this;
