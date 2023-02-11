@@ -1691,7 +1691,7 @@ internal class CompleteMultipartUploadArgs : ObjectWriteArgs<CompleteMultipartUp
                 new XElement("ETag", ETags[i])));
         var completeMultipartUploadXml = new XElement("CompleteMultipartUpload", parts);
         var bodyString = completeMultipartUploadXml.ToString();
-        var body = Encoding.UTF8.GetBytes(bodyString);
+        //var body = Encoding.UTF8.GetBytes(bodyString);
         var bodyInBytes = Encoding.UTF8.GetBytes(bodyString);
         requestMessageBuilder.BodyParameters.Add("content-type", "application/xml");
         requestMessageBuilder.SetBody(bodyInBytes);

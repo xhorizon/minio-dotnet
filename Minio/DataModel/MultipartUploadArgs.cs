@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
@@ -90,6 +91,12 @@ public class CreateMultipartUploadResponse : GenericResponse
     public string UploadId { get; }
 }
 
+public interface IMultipartUploadPart
+{
+    public int PartNum { get; }
+    public string ETag { get; }
+}
+
 public class FinishedMultipartUploadArgs : ObjectWriteArgs<FinishedMultipartUploadArgs>
 {
     public FinishedMultipartUploadArgs()
@@ -98,15 +105,16 @@ public class FinishedMultipartUploadArgs : ObjectWriteArgs<FinishedMultipartUplo
     }
 
     public string UploadId { get; set; }
-    public Dictionary<int, string> ETags { get; set; } = new();
+
+    public List<IMultipartUploadPart> Parts { get; set; }
 
     internal override void Validate()
     {
         base.Validate();
         if (string.IsNullOrWhiteSpace(UploadId))
             throw new ArgumentNullException(nameof(UploadId) + " cannot be empty.");
-        if (ETags == null || ETags.Count <= 0)
-            throw new InvalidOperationException(nameof(ETags) + " dictionary cannot be empty.");
+        if (Parts is not { Count: > 0 })
+            throw new InvalidOperationException(nameof(Parts) + " parts cannot be empty.");
     }
 
     public FinishedMultipartUploadArgs WithUploadId(string uploadId)
@@ -115,9 +123,13 @@ public class FinishedMultipartUploadArgs : ObjectWriteArgs<FinishedMultipartUplo
         return this;
     }
 
-    public FinishedMultipartUploadArgs WithETags(Dictionary<int, string> etags)
+    public FinishedMultipartUploadArgs WithParts(IList<IMultipartUploadPart> parts)
     {
-        if (etags != null && etags.Count > 0) ETags = new Dictionary<int, string>(etags);
+        if (parts is { Count: > 0 })
+        {
+            Parts = new List<IMultipartUploadPart>(parts);
+        }
+
         return this;
     }
 
@@ -126,13 +138,15 @@ public class FinishedMultipartUploadArgs : ObjectWriteArgs<FinishedMultipartUplo
         requestMessageBuilder.AddQueryParameter("uploadId", $"{UploadId}");
         var parts = new List<XElement>();
 
-        for (var i = 1; i <= ETags.Count; i++)
-            parts.Add(new XElement("Part",
-                new XElement("PartNumber", i),
-                new XElement("ETag", ETags[i])));
+        foreach (var mup in Parts.OrderBy(c => c.PartNum))
+        {
+            //var xel = new List<object> { new XElement("PartNumber", mup.PartNum), new XElement("ETag", mup.ETag) };
+            parts.Add(new XElement("Part", new XElement("PartNumber", mup.PartNum), new XElement("ETag", mup.ETag)));
+        }
+
         var completeMultipartUploadXml = new XElement("CompleteMultipartUpload", parts);
         var bodyString = completeMultipartUploadXml.ToString();
-        var body = Encoding.UTF8.GetBytes(bodyString);
+        //var body = Encoding.UTF8.GetBytes(bodyString);
         var bodyInBytes = Encoding.UTF8.GetBytes(bodyString);
         requestMessageBuilder.BodyParameters.Add("content-type", "application/xml");
         requestMessageBuilder.SetBody(bodyInBytes);

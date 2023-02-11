@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
 using Minio.DataModel;
 
 namespace Minio;
@@ -41,7 +44,7 @@ public partial class MinioClient : IMultipartUploadOperations
         return RemoveUploadAsync(rmArgs, cancellationToken);
     }
 
-    public async Task<UploadPartSignResult> SignMultipartUploadPart(SignObjectPartArgs args)
+    public async Task<UploadPartSignResult> SignMultipartUploadPartAsync(SignObjectPartArgs args)
     {
         if (args.PartNumber <= 0)
         {
@@ -70,30 +73,14 @@ public partial class MinioClient : IMultipartUploadOperations
         return res;
     }
 
-    public Task FinishedMultipartUploadAsync(FinishedMultipartUploadArgs args,
+    public async Task<FinishedMultipartUploadResponse> FinishedMultipartUploadAsync(FinishedMultipartUploadArgs args,
         CancellationToken cancellationToken = default)
     {
-        var aa = new CompleteMultipartUploadArgs
-        {
-            UploadId = args.UploadId,
-            // destBucketName, destObjectName, metadata, sseHeaders
-            RequestMethod = HttpMethod.Post,
-            BucketName = args.BucketName,
-            ObjectName = args.ObjectName,
-            Headers = new Dictionary<string, string>(),
-            SSE = args.SSE,
-        };
-
-        aa.WithETags(args.ETags);
-        
-        aa.SSE?.Marshal(args.Headers);
-        
-        if (args.Headers is { Count: > 0 })
-        {
-            aa.Headers = aa.Headers.Concat(args.Headers).GroupBy(item => item.Key)
-                .ToDictionary(item => item.Key, item => item.First().Value);
-        }
-
-        return CompleteMultipartUploadAsync(aa, cancellationToken);
+        args.Validate();
+        var requestMessageBuilder = await CreateRequest(args).ConfigureAwait(false);
+        using var response = await ExecuteTaskAsync(NoErrorHandlers, requestMessageBuilder, cancellationToken)
+            .ConfigureAwait(false);
+        var ret = new FinishedMultipartUploadResponse(response.StatusCode, response.Content);
+        return ret;
     }
 }

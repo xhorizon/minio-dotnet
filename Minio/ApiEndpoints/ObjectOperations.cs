@@ -1393,7 +1393,7 @@ public partial class MinioClient : IObjectOperations
 
         var completeMultipartUploadXml = new XElement("CompleteMultipartUpload", parts);
         var bodyString = completeMultipartUploadXml.ToString();
-        var body = Encoding.UTF8.GetBytes(bodyString);
+        //var body = Encoding.UTF8.GetBytes(bodyString);
 
         requestMessageBuilder.AddOrUpdateHeaderParameter("Content-Type", "application/xml");
 

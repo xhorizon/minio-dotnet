@@ -12,7 +12,7 @@ public interface IMultipartUploadOperations
     Task AbortMultipartUploadAsync(string bucketName, string key, string uploadId,
         CancellationToken cancellationToken = default);
 
-    Task<UploadPartSignResult> SignMultipartUploadPart(SignObjectPartArgs args);
+    Task<UploadPartSignResult> SignMultipartUploadPartAsync(SignObjectPartArgs args);
 
-    Task FinishedMultipartUploadAsync(FinishedMultipartUploadArgs args, CancellationToken cancellationToken = default);
+    Task<FinishedMultipartUploadResponse> FinishedMultipartUploadAsync(FinishedMultipartUploadArgs args, CancellationToken cancellationToken = default);
 }
