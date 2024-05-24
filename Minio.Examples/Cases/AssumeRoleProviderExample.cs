@@ -1,4 +1,4 @@
-// -*- coding: utf-8 -*-
+﻿// -*- coding: utf-8 -*-
 // MinIO Python Library for Amazon S3 Compatible Cloud Storage,
 // (C) 2022 MinIO, Inc.
 //
@@ -39,6 +39,7 @@ public static class AssumeRoleProviderExample
             .WithCredentials(accessKey, secretKey)
             .WithSSL()
             .Build();
+       
         try
         {
             var provider = new AssumeRoleProvider(minio);

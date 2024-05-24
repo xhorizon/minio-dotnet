@@ -20,7 +20,7 @@ using Minio.Handlers;
 
 namespace Minio;
 
-public interface IMinioClient : IBucketOperations, IObjectOperations, IDisposable
+public interface IMinioClient : IBucketOperations, IObjectOperations, IDisposable, IMultipartUploadOperations
 {
     MinioConfig Config { get; }
     IEnumerable<IApiResponseErrorHandler> ResponseErrorHandlers { get; }

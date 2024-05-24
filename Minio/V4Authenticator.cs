@@ -533,22 +533,24 @@ internal class V4Authenticator
         if (requestBuilder.Method.Equals(HttpMethod.Put) ||
             requestBuilder.Method.Equals(HttpMethod.Post))
         {
-            var body = requestBuilder.Content;
-            if (body.IsEmpty)
-            {
-                requestBuilder.AddOrUpdateHeaderParameter("x-amz-content-sha256", sha256EmptyFileHash);
-                return;
-            }
+            if (!requestBuilder.HeaderParameters.TryGetValue("x-amz-content-sha256", out _)) {
+                var body = requestBuilder.Content;
+                if (body.IsEmpty)
+                {
+                    requestBuilder.AddOrUpdateHeaderParameter("x-amz-content-sha256", sha256EmptyFileHash);
+                    return;
+                }
 #if NETSTANDARD
             using var sha = SHA256.Create();
             var hash
                 = sha.ComputeHash(body.ToArray());
 #else
-            var hash = SHA256.HashData(body.Span);
+                var hash = SHA256.HashData(body.Span);
 #endif
-            var hex = BitConverter.ToString(hash).Replace("-", string.Empty, StringComparison.OrdinalIgnoreCase)
-                .ToLowerInvariant();
-            requestBuilder.AddOrUpdateHeaderParameter("x-amz-content-sha256", hex);
+                var hex = BitConverter.ToString(hash).Replace("-", string.Empty, StringComparison.OrdinalIgnoreCase)
+                    .ToLowerInvariant();
+                requestBuilder.AddOrUpdateHeaderParameter("x-amz-content-sha256", hex);
+            }
         }
         else if (!IsSecure && !requestBuilder.Content.IsEmpty)
         {
