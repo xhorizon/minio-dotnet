@@ -19,6 +19,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Reactive.Linq;
 using System.Runtime.CompilerServices;
+using System.Web;
 using System.Xml.Linq;
 using CommunityToolkit.HighPerformance;
 using Minio.ApiEndpoints;
@@ -89,10 +90,9 @@ public partial class MinioClient : IBucketOperations
                     HttpStatusCode.NotFound != ice.ServerResponse.StatusCode) &&
                    ice.ServerResponse is not null;
         }
-        catch (Exception ex)
+        catch (BucketNotFoundException)
         {
-            if (ex.GetType() == typeof(BucketNotFoundException)) return false;
-            throw;
+            return false;
         }
     }
 
@@ -271,7 +271,7 @@ public partial class MinioClient : IBucketOperations
 
                 var objectKey = t.Element(ns + "Key")?.Value;
                 if (objectKey != null)
-                    objectKey = Uri.UnescapeDataString(objectKey);
+                    objectKey = HttpUtility.UrlDecode(objectKey);
 
                 return new Item
                 {
@@ -757,6 +757,18 @@ public partial class MinioClient : IBucketOperations
             await this.ExecuteTaskAsync(ResponseErrorHandlers, requestMessageBuilder,
                     cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    ///     Subscribes to global change notifications (a Minio-only extension)
+    /// </summary>
+    /// <param name="args">ListenBucketNotificationsArgs to listen events</param>
+    /// <param name="cancellationToken">Optional cancellation token to cancel the operation</param>
+    /// <returns>An observable of JSON-based notification events</returns>
+    public IObservable<MinioNotificationRaw> ListenNotifications(ListenBucketNotificationsArgs args,
+        CancellationToken cancellationToken = default)
+    {
+        return ListenBucketNotificationsAsync(args, cancellationToken);
     }
 
     /// <summary>

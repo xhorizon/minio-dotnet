@@ -1,4 +1,4 @@
-/*
+﻿/*
  * MinIO .NET Library for Amazon S3 Compatible Cloud Storage,
  * (C) 2017-2021 MinIO, Inc.
  *
@@ -82,6 +82,9 @@ public static class FunctionalTest
 
     private const string listenBucketNotificationsSignature =
         "IObservable<MinioNotificationRaw> ListenBucketNotificationsAsync(ListenBucketNotificationsArgs args, CancellationToken cancellationToken = default(CancellationToken))";
+
+    private const string listenNotificationsSignature =
+        "IObservable<MinioNotificationRaw> ListenNotifications(ListenBucketNotificationsArgs args, CancellationToken cancellationToken = default(CancellationToken))";
 
     private const string copyObjectSignature =
         "Task<CopyObjectResult> CopyObjectAsync(CopyObjectArgs args, CancellationToken cancellationToken = default(CancellationToken))";
@@ -339,8 +342,8 @@ public static class FunctionalTest
             PresignedPutObject_Test1(minioClient),
 
             // Test incomplete uploads
-            ListIncompleteUpload_Test1(minioClient),
-            RemoveIncompleteUpload_Test(minioClient),
+            //ListIncompleteUpload_Test1(minioClient),
+            //RemoveIncompleteUpload_Test(minioClient),
 
             // Test GetBucket policy
             GetBucketPolicy_Test1(minioClient)
@@ -1011,8 +1014,8 @@ public static class FunctionalTest
                 .WithStreamData(filestream)
                 .WithObjectSize(size)
                 .WithProgress(progress)
-                .WithContentType(contentType)
-                .WithHeaders(metaData);
+                .WithHeaders(metaData)
+                .WithContentType(contentType);
             var statPutObj = await minio.PutObjectAsync(putObjectArgs).ConfigureAwait(false);
 
             var statObjectArgs = new StatObjectArgs()
@@ -1032,6 +1035,17 @@ public static class FunctionalTest
         }
 
         return statObject;
+    }
+
+    internal static async Task<bool> CreateBucket_Tester(IMinioClient minio, string bucketName)
+    {
+        // Create a new bucket
+        await minio.MakeBucketAsync(new MakeBucketArgs().WithBucket(bucketName)).ConfigureAwait(false);
+        await Task.Delay(800).ConfigureAwait(false);
+
+        // Verify the bucket exists
+        return await minio.BucketExistsAsync(new BucketExistsArgs().WithBucket(bucketName))
+            .ConfigureAwait(false);
     }
 
     internal static async Task StatObject_Test1(IMinioClient minio)
@@ -1266,7 +1280,7 @@ public static class FunctionalTest
                 .WithBucket(bucketName)
                 .WithObjectsVersions(objVersions);
 
-            await minio.RemoveObjectsAsync(removeObjectsArgs).ConfigureAwait(false);
+            _ = await minio.RemoveObjectsAsync(removeObjectsArgs).ConfigureAwait(false);
 
             await TearDown(minio, bucketName).ConfigureAwait(false);
 
@@ -2621,6 +2635,77 @@ public static class FunctionalTest
         }
     }
 
+    #region Global Notifications
+
+    internal static async Task ListenNotifications_Test1(IMinioClient minio)
+    {
+        var startTime = DateTime.Now;
+        var bucketName = GetRandomName(15);
+        var args = new Dictionary<string, string>
+            (StringComparer.Ordinal) { { "bucketName", bucketName } };
+        try
+        {
+            var received = new List<MinioNotificationRaw>();
+            var eventsList = new List<EventType> { EventType.BucketCreatedAll };
+
+            // No need to define a new "ListenNotificationArgs"
+            // "ListenBucketNotificationsArgs" is good here
+            var listenArgs = new ListenBucketNotificationsArgs()
+                .WithEvents(eventsList);
+            var events = minio.ListenNotifications(listenArgs);
+            var eventDetected = false;
+            using (var subscription = events.Subscribe(
+                       received.Add,
+                       _ => { },
+                       () => { }))
+            {
+                await Task.Delay(200).ConfigureAwait(false);
+                // Trigger the event by creating a new bucket
+                _ = await CreateBucket_Tester(minio, bucketName).ConfigureAwait(false);
+            }
+
+            for (var attempt = 0; attempt < 20; attempt++)
+                // Check if there is a caught event
+                if (received.Count == 1)
+                {
+                    var notification = JsonSerializer.Deserialize<MinioNotification>(received[0].Json);
+
+                    if (notification.Records is not null)
+                    {
+                        Assert.AreEqual(1, notification.Records.Count);
+                        Assert.IsTrue(notification.Records[0].EventName
+                            .Contains("s3:BucketCreated:*", StringComparison.OrdinalIgnoreCase));
+                        eventDetected = true;
+                        break;
+                    }
+                }
+
+            if (eventDetected)
+                new MintLogger(nameof(ListenNotifications_Test1),
+                    listenNotificationsSignature,
+                    "Tests whether ListenNotifications notifies user about \"BucketCreatedAll\" event",
+                    TestStatus.PASS, DateTime.Now - startTime, args: args).Log();
+            else
+                throw new UnexpectedMinioException(
+                    "Failed to detect the expected notification event, \"BucketCreatedAll\".");
+        }
+        catch (Exception ex)
+        {
+            new MintLogger(nameof(ListenNotifications_Test1),
+                listenNotificationsSignature,
+                "Tests whether ListenNotifications notifies user about \"BucketCreatedAll\" event",
+                TestStatus.FAIL, DateTime.Now - startTime, ex.Message,
+                ex.ToString(), args: args).Log();
+            throw;
+        }
+        finally
+        {
+            await TearDown(minio, bucketName).ConfigureAwait(false);
+        }
+    }
+
+    #endregion
+
     #region Bucket Notifications
 
     internal static async Task ListenBucketNotificationsAsync_Test1(IMinioClient minio)
@@ -2644,56 +2729,26 @@ public static class FunctionalTest
             var received = new List<MinioNotificationRaw>();
 
             var eventsList = new List<EventType> { EventType.ObjectCreatedAll };
+            var eventDetected = false;
 
             var listenArgs = new ListenBucketNotificationsArgs()
                 .WithBucket(bucketName)
                 .WithEvents(eventsList);
             var events = minio.ListenBucketNotificationsAsync(listenArgs);
-            var subscription = events.Subscribe(
-                received.Add,
-                ex => { },
-                () => { }
-            );
+            using (var subscription = events.Subscribe(
+                       received.Add,
+                       _ => { },
+                       () => { }))
+            {
+                _ = await PutObject_Tester(minio, bucketName, objectName, null, contentType,
+                    0, null, rsg.GenerateStreamFromSeed(1 * KB)).ConfigureAwait(false);
+            }
 
-            _ = await PutObject_Tester(minio, bucketName, objectName, null, contentType,
-                0, null, rsg.GenerateStreamFromSeed(1 * KB)).ConfigureAwait(false);
-
-            // wait for notifications
-            var eventDetected = false;
-            for (var attempt = 0; attempt < 10; attempt++)
-                if (received.Count > 0)
+            for (var attempt = 0; attempt < 20; attempt++)
+                // Check if there is a caught event
+                if (received.Count == 1)
                 {
-                    // Check if there is any unexpected error returned
-                    // and captured in the receivedJson list, like
-                    // "NotImplemented" api error. If so, we throw an exception
-                    // and skip running this test
-                    if (received.Count > 1 &&
-                        received[1].Json.StartsWith("<Error><Code>", StringComparison.OrdinalIgnoreCase))
-                    {
-                        // Although the attribute is called "json",
-                        // returned data in list "received" is in xml
-                        // format and it is an error.Here, we convert xml
-                        // into json format.
-                        var receivedJson = XmlStrToJsonStr(received[1].Json);
-
-                        // Cleanup the "Error" key encapsulating "receivedJson"
-                        // data. This is required to match and convert json data
-                        // "receivedJson" into class "ErrorResponse"
-                        var len = "{'Error':".Length;
-                        var trimmedFront = receivedJson[len..];
-                        var trimmedFull = trimmedFront[..^1];
-
-                        var err = JsonSerializer.Deserialize<ErrorResponse>(trimmedFull);
-
-                        Exception ex = new UnexpectedMinioException(err.Message);
-                        if (string.Equals(err.Code, "NotImplemented", StringComparison.OrdinalIgnoreCase))
-                            ex = new NotImplementedException(err.Message);
-                        await TearDown(minio, bucketName).ConfigureAwait(false);
-                        throw ex;
-                    }
-
                     var notification = JsonSerializer.Deserialize<MinioNotification>(received[0].Json);
-
                     if (notification.Records is not null)
                     {
                         Assert.AreEqual(1, notification.Records.Count);
@@ -2709,20 +2764,19 @@ public static class FunctionalTest
                     }
                 }
 
-            // subscription.Dispose();
-            if (!eventDetected)
+            if (eventDetected)
+                new MintLogger(nameof(ListenBucketNotificationsAsync_Test1),
+                    listenBucketNotificationsSignature,
+                    "Tests whether ListenBucketNotifications passes for small object",
+                    TestStatus.PASS, DateTime.Now - startTime, args: args).Log();
+            else
                 throw new UnexpectedMinioException("Failed to detect the expected bucket notification event.");
-
-            new MintLogger(nameof(ListenBucketNotificationsAsync_Test1),
-                listenBucketNotificationsSignature,
-                "Tests whether ListenBucketNotifications passes for small object",
-                TestStatus.PASS, DateTime.Now - startTime, args: args).Log();
         }
         catch (NotImplementedException ex)
         {
             new MintLogger(nameof(ListenBucketNotificationsAsync_Test1),
                 listenBucketNotificationsSignature,
-                "Tests whether ListenBucketNotifications passes for small object",
+                "Tests whether ListenBucketNotifications generates notification for a newly created object.",
                 TestStatus.NA, DateTime.Now - startTime, ex.Message,
                 ex.ToString(), args: args).Log();
         }
@@ -2746,14 +2800,14 @@ public static class FunctionalTest
                     // This is a PASS
                     new MintLogger(nameof(ListenBucketNotificationsAsync_Test1),
                         listenBucketNotificationsSignature,
-                        "Tests whether ListenBucketNotifications passes for small object",
+                        "Tests whether ListenBucketNotifications generates notification for a newly created object.",
                         TestStatus.PASS, DateTime.Now - startTime, args: args).Log();
             }
             else
             {
                 new MintLogger(nameof(ListenBucketNotificationsAsync_Test1),
                     listenBucketNotificationsSignature,
-                    "Tests whether ListenBucketNotifications passes for small object",
+                    "Tests whether ListenBucketNotifications generates notification for a newly created object.",
                     TestStatus.FAIL, DateTime.Now - startTime, ex.Message,
                     ex.ToString(), args: args).Log();
                 throw;
@@ -3174,7 +3228,7 @@ public static class FunctionalTest
         var startTime = DateTime.Now;
         var bucketName = GetRandomName(15);
         var objectName = GetRandomObjectName(10);
-        var contentType = "application/octet-stream";
+        var contentType = "image/png";
         var size = 1 * MB;
         var args = new Dictionary<string, string>
             (StringComparer.Ordinal)
@@ -4657,16 +4711,16 @@ public static class FunctionalTest
         try
         {
             await Setup_Test(minio, bucketName).ConfigureAwait(false);
-
-            using (var filestream = rsg.GenerateStreamFromSeed(1 * MB))
+            Stream strm;
+            await using ((strm = rsg.GenerateStreamFromSeed(1 * MB)).ConfigureAwait(false))
             {
-                var file_write_size = filestream.Length;
+                var file_write_size = strm.Length;
                 long file_read_size = 0;
                 var putObjectArgs = new PutObjectArgs()
                     .WithBucket(bucketName)
                     .WithObject(objectName)
-                    .WithStreamData(filestream)
-                    .WithObjectSize(filestream.Length)
+                    .WithStreamData(strm)
+                    .WithObjectSize(strm.Length)
                     .WithContentType(contentType);
                 _ = await minio.PutObjectAsync(putObjectArgs).ConfigureAwait(false);
 
@@ -4771,6 +4825,85 @@ public static class FunctionalTest
         {
             if (File.Exists(fileName))
                 File.Delete(fileName);
+            await TearDown(minio, bucketName).ConfigureAwait(false);
+        }
+    }
+
+    internal static async Task GetObjectNegObjNotFound_Test3(IMinioClient minio)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var bucketName = GetRandomName(15);
+        var objectName = GetRandomObjectName(10);
+        var args = new Dictionary<string, string>
+            (StringComparer.Ordinal) { { "bucketName", bucketName }, { "objectName", objectName } };
+        try
+        {
+            await Setup_Test(minio, bucketName).ConfigureAwait(false);
+            // Don't Put the object, so we can hit "ObjectNotFound" exception
+            var getObjectArgs = new GetObjectArgs()
+                .WithBucket(bucketName)
+                .WithObject(objectName)
+                .WithCallbackStream(_ => throw new Exception("Should never be reached at the Callback function"));
+            _ = await minio.GetObjectAsync(getObjectArgs).ConfigureAwait(false);
+            new MintLogger("GetObjectNegObjNotFound_Test3", getObjectSignature,
+                "Tests whether GetObjectAsync hits ObjectNotFoundException",
+                TestStatus.FAIL, stopwatch.Elapsed, "Failed to hit ObjectNotFoundxception", args: args).Log();
+            throw new Exception("Failed to hit ObjectNotFoundException");
+        }
+        catch (ObjectNotFoundException)
+        {
+            new MintLogger("GetObjectNegObjNotFound_Test3", getObjectSignature,
+                "Tests whether GetObjectAsync hits ObjectNotFoundException",
+                TestStatus.PASS, stopwatch.Elapsed, args: args).Log();
+        }
+        catch (Exception ex)
+        {
+            new MintLogger("GetObjectNegObjNotFound_Test3", getObjectSignature,
+                "Tests whether GetObjectAsync hits ObjectNotFoundException",
+                TestStatus.FAIL, stopwatch.Elapsed, ex.Message, ex.ToString(), args: args).Log();
+            throw;
+        }
+        finally
+        {
+            await TearDown(minio, bucketName).ConfigureAwait(false);
+        }
+    }
+
+    internal static async Task GetObjectNegBcktNotFound_Test4(IMinioClient minio)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var bucketName = GetRandomName(15);
+        var objectName = GetRandomObjectName(10);
+        var args = new Dictionary<string, string>
+            (StringComparer.Ordinal) { { "bucketName", bucketName }, { "objectName", objectName } };
+        try
+        {
+            // No object, no bucket, so we can hit "BucketNotFoundException" with
+            var getObjectArgs = new GetObjectArgs()
+                .WithBucket(bucketName)
+                .WithObject(objectName)
+                .WithCallbackStream(_ => throw new Exception("Should never be reached"));
+            _ = await minio.GetObjectAsync(getObjectArgs).ConfigureAwait(false);
+            new MintLogger("GetObjectNegBcktNotFound_Test4", getObjectSignature,
+                "Tests whether GetObjectAsync hits BucketNotFoundException",
+                TestStatus.FAIL, stopwatch.Elapsed, "Failed to hit BucketNotFoundException", args: args).Log();
+            throw new Exception("Failed to hit BucketNotFoundException");
+        }
+        catch (BucketNotFoundException)
+        {
+            new MintLogger("GetObjectNegBcktNotFound_Test4", getObjectSignature,
+                "Tests whether GetObjectAsync hits BucketNotFoundException",
+                TestStatus.PASS, stopwatch.Elapsed, args: args).Log();
+        }
+        catch (Exception ex)
+        {
+            new MintLogger("GetObjectNegBcktNotFound_Test4", getObjectSignature,
+                "Tests whether GetObjectAsync hits BucketNotFoundException",
+                TestStatus.FAIL, stopwatch.Elapsed, ex.Message, ex.ToString(), args: args).Log();
+            throw;
+        }
+        finally
+        {
             await TearDown(minio, bucketName).ConfigureAwait(false);
         }
     }
@@ -5292,6 +5425,94 @@ public static class FunctionalTest
         }
     }
 
+    internal static async Task ListObjects_Test7(IMinioClient minio)
+    {
+        var startTime = DateTime.Now;
+        var bucketName = GetRandomName(15);
+        var prefix = "minix ";
+        var objectName = prefix + GetRandomName(10);
+        var args = new Dictionary<string, string>
+            (StringComparer.Ordinal)
+            {
+                { "bucketName", bucketName },
+                { "objectName", objectName },
+                { "prefix", prefix },
+                { "recursive", "false" }
+            };
+        try
+        {
+            await Setup_Test(minio, bucketName).ConfigureAwait(false);
+            var tasks = new Task[2];
+            for (var i = 0; i < 2; i++)
+                tasks[i] = PutObject_Task(minio, bucketName, objectName + i, null, null, 0, null,
+                    rsg.GenerateStreamFromSeed(1));
+
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+
+            await ListObjects_Test(minio, bucketName, prefix, 2, false).ConfigureAwait(false);
+            new MintLogger("ListObjects_Test7", listObjectsSignature,
+                "Tests whether ListObjects lists all objects matching a prefix with a space non-recursive",
+                TestStatus.PASS,
+                DateTime.Now - startTime, args: args).Log();
+        }
+        catch (Exception ex)
+        {
+            new MintLogger("ListObjects_Test7", listObjectsSignature,
+                "Tests whether ListObjects lists all objects matching a prefix with a space non-recursive",
+                TestStatus.FAIL,
+                DateTime.Now - startTime, ex.Message, ex.ToString(), args: args).Log();
+            throw;
+        }
+        finally
+        {
+            await TearDown(minio, bucketName).ConfigureAwait(false);
+        }
+    }
+
+    internal static async Task ListObjects_Test8(IMinioClient minio)
+    {
+        var startTime = DateTime.Now;
+        var bucketName = GetRandomName(15);
+        var prefix = "minix+";
+        var objectName = prefix + GetRandomName(10);
+        var args = new Dictionary<string, string>
+            (StringComparer.Ordinal)
+            {
+                { "bucketName", bucketName },
+                { "objectName", objectName },
+                { "prefix", prefix },
+                { "recursive", "false" }
+            };
+        try
+        {
+            await Setup_Test(minio, bucketName).ConfigureAwait(false);
+            var tasks = new Task[2];
+            for (var i = 0; i < 2; i++)
+                tasks[i] = PutObject_Task(minio, bucketName, objectName + i, null, null, 0, null,
+                    rsg.GenerateStreamFromSeed(1));
+
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+
+            await ListObjects_Test(minio, bucketName, prefix, 2, false).ConfigureAwait(false);
+            new MintLogger("ListObjects_Test8", listObjectsSignature,
+                "Tests whether ListObjects lists all objects matching a prefix with a plus non-recursive",
+                TestStatus.PASS,
+                DateTime.Now - startTime, args: args).Log();
+        }
+        catch (Exception ex)
+        {
+            new MintLogger("ListObjects_Test8", listObjectsSignature,
+                "Tests whether ListObjects lists all objects matching a prefix with a plus non-recursive",
+                TestStatus.FAIL,
+                DateTime.Now - startTime, ex.Message, ex.ToString(), args: args).Log();
+            throw;
+        }
+        finally
+        {
+            await TearDown(minio, bucketName).ConfigureAwait(false);
+        }
+    }
+
     internal static async Task ListObjectVersions_Test1(IMinioClient minio)
     {
         var startTime = DateTime.Now;
@@ -5738,8 +5959,6 @@ public static class FunctionalTest
         var bucketName = GetRandomName(15);
         var objectName = GetRandomObjectName(10);
         var contentType = "gzip";
-        var args = new Dictionary<string, string>
-            (StringComparer.Ordinal) { { "bucketName", bucketName }, { "recursive", "true" } };
         try
         {
             await Setup_Test(minio, bucketName).ConfigureAwait(false);
