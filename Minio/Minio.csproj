@@ -8,6 +8,7 @@
 		<PublicSign Condition="'$(OS)' != 'Windows_NT'">true</PublicSign>
 		<Description>MinIO .NET SDK for Amazon S3 Compatible Cloud Storage.</Description>
 		<Product>Minio</Product>
+		<Version>6.0.5.1</Version>
 	</PropertyGroup>
 
 	<ItemGroup>

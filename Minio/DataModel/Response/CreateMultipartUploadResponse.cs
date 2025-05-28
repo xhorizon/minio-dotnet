@@ -16,5 +16,5 @@ public class CreateMultipartUploadResponse : GenericResponse
         UploadId = newUpload.UploadId;
     }
 
-    internal string UploadId { get; }
+    public string UploadId { get; }
 }
