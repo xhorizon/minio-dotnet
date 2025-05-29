@@ -4,6 +4,7 @@ using System.Reactive.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Minio.ApiEndpoints;
 using Minio.DataModel.Args;
 
 
