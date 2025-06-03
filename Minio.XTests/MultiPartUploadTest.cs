@@ -1,85 +1,73 @@
-﻿using System.Net;
+﻿using Minio.DataModel.Args;
 using System.Net.Http.Headers;
-using System.Reactive.Linq;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Minio.ApiEndpoints;
-using Minio.DataModel.Args;
 
+namespace Minio.XTests;
 
-namespace Minio.Tests;
-
-[TestClass]
-public class MultipartUploadTest
+public class MultiPartUploadTest
 {
-    private const string ENDPOINT = "192.168.1.141:9000";
-    private const string USERNAME = "minioadmin";
-    private const string PASSWORD = "minioadmin";
-    
-    [TestMethod]
+    private const string ENDPOINT = "192.168.100.200:9000";
+    private const string ACCESSKEY = "d8NMaDmx4t2khR51C55m";
+    private const string SECRETKEY = "QKYw1cQNf5ghLgqMhMKUp3rBi47qHxW2X4I31dL2";
+
+
+    [Fact]
     public async Task CreateMultipartUpload()
     {
         using var hc = new HttpClient();
         var client = new MinioClient()
             .WithEndpoint(ENDPOINT).WithSSL(false)
-            .WithCredentials(USERNAME,
-                PASSWORD).WithHttpClient(hc)
+            .WithCredentials(ACCESSKEY,
+                SECRETKEY).WithHttpClient(hc)
             .Build();
         // var buks =await client.ListBucketsAsync();
         var bucket = "test";
         var objectName = "F5123BBC-53E9-4C37-8A55-507767906890";
-        var args = new CreateMultipartUploadArgs
-        {
-            BucketName = bucket,
-            ObjectName = objectName,
-            ContentType = "application/octet-stream"
-        };
-      
+        var args = (new CreateMultipartUploadArgs()).WithBucket(bucket).WithObject(objectName).WithContentType("application/octet-stream");
+
         var resp = await client.CreateMultipartUploadAsync(args);
-        Assert.IsTrue(!string.IsNullOrEmpty(resp.UploadId));
+        Assert.True(!string.IsNullOrEmpty(resp.UploadId));
         var sss = (new SignObjectPartArgs())
             .WithBucket(bucket)
             .WithObject(objectName)
             .WithUploadId(resp.UploadId)
-            .WithPartNumber(1); 
-     
-     
+            .WithPartNumber(1);
+
+
         var aa = await client.SignMultipartUploadPartAsync(sss);
         await client.AbortMultipartUploadAsync(bucket, objectName, resp.UploadId);
-        var li = (new ListIncompleteUploadsArgs { BucketName = bucket }).WithPrefix(objectName);
-     
-        var ups = client.ListIncompleteUploads(li);
-        _= ups.Subscribe(cc => Assert.IsTrue(!string.Equals(resp.UploadId, cc.UploadId, StringComparison.OrdinalIgnoreCase)));
+        var li = (new ListIncompleteUploadsArgs ()).WithBucket(bucket).WithPrefix(objectName);
+
+        await foreach (var k in client.ListIncompleteUploadsEnumAsync(li))
+        {
+            Assert.Equal(k.UploadId, resp.UploadId, ignoreCase: true);
+        }
     }
 
-    [TestMethod]
+    [Fact]
     public async Task FullProgress()
     {
         using var hc = new HttpClient();
         var client = new MinioClient()
             .WithEndpoint(ENDPOINT).WithSSL(false)
-            .WithCredentials(USERNAME,PASSWORD).WithHttpClient(hc)
+            .WithCredentials(ACCESSKEY, SECRETKEY).WithHttpClient(hc)
             .Build();
 
         // var buks =await client.ListBucketsAsync();
         var bucket = "test";
         var objectName = "F5123BBC-53E9-4C37-8A55-507767906890.exe";
-        var file = @"D:\fff.exe";
+        var file = @"D:\tt.mp4";
 
-        Assert.IsTrue(File.Exists(file));
+        Assert.True(File.Exists(file));
         /*
          * CreateMultipartUploadA
          */
-        var args = new CreateMultipartUploadArgs
-        {
-            BucketName = bucket,
-            ObjectName = objectName,
-            ContentType = "application/octet-stream"
-        };
+        var args = (new CreateMultipartUploadArgs()).WithBucket(bucket).WithObject(objectName).WithContentType("application/octet-stream");
         var resp = await client.CreateMultipartUploadAsync(args);
 
-        Assert.IsTrue(resp.ResponseStatusCode == HttpStatusCode.OK);
+        Assert.True(resp.ResponseStatusCode == HttpStatusCode.OK);
 
         var uploadId = resp.UploadId;
         var eTagList = new Dictionary<int, string>();
@@ -89,7 +77,7 @@ public class MultipartUploadTest
         var pn = 0;
         using (var fs = File.OpenRead(file))
         {
-         
+
             var bytesRead = 0;
             while ((bytesRead = await fs.ReadAsync(buffer, 0, buffer.Length)) > 0)
             {
@@ -118,15 +106,15 @@ public class MultipartUploadTest
                 foreach (var hh in sup.Headers)
                 {
                     //if (hh.Key.Equals("Host", StringComparison.OrdinalIgnoreCase)) continue;
-                    _= reqMsg.Headers.TryAddWithoutValidation(hh.Key, hh.Value);
+                    _ = reqMsg.Headers.TryAddWithoutValidation(hh.Key, hh.Value);
                 }
 
                 var pRes = await hc.SendAsync(reqMsg);
-                var b = await pRes.Content.ReadAsStringAsync().ConfigureAwait(false);
-                Assert.IsTrue(pRes.IsSuccessStatusCode);
+                var b = await pRes.Content.ReadAsStringAsync();
+                Assert.True(pRes.IsSuccessStatusCode);
                 var h2 = pRes.Headers.TryGetValues("ETag", out var etag);
-                Assert.IsTrue(h2);
-              
+                Assert.True(h2);
+                Assert.NotNull(etag);
                 eTagList.Add(pn, etag.First());
             }
 
@@ -137,13 +125,13 @@ public class MultipartUploadTest
                 .WithUploadId(resp.UploadId)
                 .WithETags(eTagList);
 
-            var rrr = await client.FinishMultipartUploadAsync(a3).ConfigureAwait(false);
-            Assert.IsTrue(rrr.StatusCode == HttpStatusCode.OK);
+            var rrr = await client.FinishMultipartUploadAsync(a3);
+            Assert.True(rrr.StatusCode == HttpStatusCode.OK);
             var compETag = rrr.ETag.Trim('"');
             var sb = new StringBuilder();
             foreach (var et in eTagList.OrderBy(c => c.Key))
             {
-                _=sb.Append(et.Value.Trim('"'));
+                _ = sb.Append(et.Value.Trim('"'));
             }
 
             var kTag = sb.ToString();
@@ -153,7 +141,7 @@ public class MultipartUploadTest
                 var hb = sh.ComputeHash(HexStringToBytes(kTag));
                 var ch = BitConverter.ToString(hb).Replace("-", "").ToLowerInvariant();
                 ch = $"{ch}-{eTagList.Count}";
-                Assert.IsTrue(compETag.Equals(ch, StringComparison.OrdinalIgnoreCase));
+                Assert.Equal(compETag, ch, ignoreCase: true);
             }
         }
     }
@@ -186,19 +174,19 @@ public class MultipartUploadTest
     }
 
 
-    [TestMethod]
+    [Fact]
     public async Task MMM()
     {
         var client = new MinioClient()
             .WithEndpoint(ENDPOINT).WithSSL(false)
-            .WithCredentials(USERNAME,PASSWORD)
+            .WithCredentials(ACCESSKEY, SECRETKEY)
             .Build();
         // var buks =await client.ListBucketsAsync();
         var bucket = "test";
         var objectName = "D9A7A399-3D9C-4021-B79B-136D15B586DD";
         var f = @"E:\Download\rustup-init.exe";
         var arg = new PutObjectArgs();
-        _=arg.WithBucket(bucket).WithObject(objectName).WithFileName(f);
-        _=await client.PutObjectAsync(arg);
+        _ = arg.WithBucket(bucket).WithObject(objectName).WithFileName(f);
+        _ = await client.PutObjectAsync(arg);
     }
 }

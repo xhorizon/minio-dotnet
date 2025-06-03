@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<AssemblyName>Minio</AssemblyName>
 		<RootNamespace>Minio</RootNamespace>
@@ -8,10 +8,13 @@
 		<PublicSign Condition="'$(OS)' != 'Windows_NT'">true</PublicSign>
 		<Description>MinIO .NET SDK for Amazon S3 Compatible Cloud Storage.</Description>
 		<Product>Minio</Product>
-		<Version>6.0.5.1</Version>
+		<Version>6.0.5.2</Version>
+        <NoWarn>CS8002;SYSLIB0053</NoWarn>
+        <PackageId>MinioPlus</PackageId>
 	</PropertyGroup>
 
 	<ItemGroup>
+		<PackageReference Include="BouncyCastle.Cryptography" Version="2.6.1" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.4" />
 		<PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.4" />
 		<PackageReference Include="System.IO.Hashing" Version="9.0.4" />

@@ -29,6 +29,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Examples", "Examples", "{BD
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FileUploader", "FileUploader\FileUploader.csproj", "{801E4A5E-E59D-4681-9657-5F5D11F2482B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Minio.XTests", "Minio.XTests\Minio.XTests.csproj", "{E6B26CBE-2609-4B57-93D3-215832331EE3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -60,6 +62,10 @@ Global
 		{801E4A5E-E59D-4681-9657-5F5D11F2482B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{801E4A5E-E59D-4681-9657-5F5D11F2482B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{801E4A5E-E59D-4681-9657-5F5D11F2482B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E6B26CBE-2609-4B57-93D3-215832331EE3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E6B26CBE-2609-4B57-93D3-215832331EE3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E6B26CBE-2609-4B57-93D3-215832331EE3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E6B26CBE-2609-4B57-93D3-215832331EE3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -70,6 +76,7 @@ Global
 		{9A754E7C-2D22-4AD7-BF1A-CA731920C8D4} = {7D76340F-C6BD-4339-BD30-F31E183736E9}
 		{FD87E01C-87A2-46DF-BE4C-0FC60AA8610C} = {BD6B8734-9AC5-4C7F-B4DF-8B77D21BC49B}
 		{801E4A5E-E59D-4681-9657-5F5D11F2482B} = {BD6B8734-9AC5-4C7F-B4DF-8B77D21BC49B}
+		{E6B26CBE-2609-4B57-93D3-215832331EE3} = {7D76340F-C6BD-4339-BD30-F31E183736E9}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {AA345B3A-09E9-4B3E-BD3A-63026FACFBD8}
