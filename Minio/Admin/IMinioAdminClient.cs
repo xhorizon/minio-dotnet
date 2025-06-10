@@ -35,6 +35,7 @@ public interface IMinioAdminClient
     /// </summary>
     /// <param name="accessKey"></param>
     /// <param name="secretKey"></param>
+    /// <param name="isEnabled"></param>
     /// <param name="token"></param>
     /// <returns></returns>
     Task SetUserAsync(string accessKey, string secretKey, bool isEnabled = true, CancellationToken token = default);

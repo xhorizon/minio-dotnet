@@ -9,7 +9,6 @@
 		<Description>MinIO .NET SDK for Amazon S3 Compatible Cloud Storage.</Description>
 		<Product>Minio</Product>
 		<Version>6.0.5.2</Version>
-        <NoWarn>CS8002;SYSLIB0053</NoWarn>
         <PackageId>MinioPlus</PackageId>
 	</PropertyGroup>
 
