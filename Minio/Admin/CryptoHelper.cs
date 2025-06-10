@@ -17,24 +17,24 @@ namespace Minio.Admin;
 /// 
 /// 加密消息格式:
 /// 
-/// |    41 bytes HEADER      |  <- 固定头部
+/// |    41 bytes HEADER      |  - 固定头部
 /// |-------------------------|
-/// | 16 KiB encrypted chunk  |  <- 加密块 + 16字节认证标签
+/// | 16 KiB encrypted chunk  |  - 加密块 + 16字节认证标签
 /// |     + 16 bytes TAG      |
 /// |-------------------------|
-/// |          ....           |  <- 可能有多个加密块
+/// |          ....           |  - 可能有多个加密块
 /// |-------------------------|
-/// | ~16 KiB encrypted chunk |  <- 最后一个块可能小于16KB
+/// | ~16 KiB encrypted chunk |  - 最后一个块可能小于16KB
 /// |     + 16 bytes TAG      |
 /// |-------------------------|
 /// 
 /// 头部格式 (41字节):
 /// 
-/// | 32 bytes salt  |  <- Argon2密钥派生使用的盐值
+/// | 32 bytes salt  |  - Argon2密钥派生使用的盐值
 /// |----------------|
-/// | 1 byte AEAD ID |  <- 加密算法标识: 0=AES-GCM, 1=ChaCha20-Poly1305
+/// | 1 byte AEAD ID |  - 加密算法标识: 0=AES-GCM, 1=ChaCha20-Poly1305
 /// |----------------|
-/// | 8 bytes NONCE  |  <- 基础随机数，实际使用时会与块ID组合
+/// | 8 bytes NONCE  |  - 基础随机数，实际使用时会与块ID组合
 /// |----------------|
 /// </summary>
 internal static class CryptoHelper
