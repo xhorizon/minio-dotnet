@@ -83,6 +83,20 @@ public class MinioAdminClient : IMinioAdminClient
         return null;
     }
 
+    public async Task<AdminAddServiceAccountResult?> AddServiceAccountAsync(AdminAddServiceAccountArgs args, CancellationToken token = default)
+    {
+        var path = $"{AdminApiPrefix}/add-service-account";
+        using var resp = await SendRequestAsync(HttpMethod.Put, path, args, token).ConfigureAwait(false);
+        if (resp == null) return null;
+        if (resp.Response.IsSuccessStatusCode)
+        {
+            var dec = CryptoHelper.Decrypt(client.Config.SecretKey, resp.ContentStream);
+            return JsonSerializer.Deserialize<AdminAddServiceAccountResult>(dec);
+        }
+
+        return null;
+    }
+
     /// <summary>
     /// 在字符串 str 中查找第一次完全匹配的子字符串 s，并将其替换为 k。
     /// </summary>

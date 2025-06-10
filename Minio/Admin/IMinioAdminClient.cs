@@ -24,6 +24,14 @@ public interface IMinioAdminClient
     Task<AdminListServiceAccountsResult?> ListServiceAccountsAsync(AdminListServiceAccountsArgs args, CancellationToken token = default);
 
     /// <summary>
+    /// creates a new service account belonging to the user sending the request while restricting the service account permission by the given policy document.
+    /// </summary>
+    /// <param name="args"></param>
+    /// <param name="token"></param>
+    /// <returns></returns>
+    Task<AdminAddServiceAccountResult?> AddServiceAccountAsync(AdminAddServiceAccountArgs args, CancellationToken token=default);
+    
+    /// <summary>
     /// list all users.
     /// </summary>
     /// <param name="token"></param>

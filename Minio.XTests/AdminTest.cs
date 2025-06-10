@@ -1,4 +1,6 @@
-﻿using Minio.Admin;
+﻿using System.Text.Json;
+using Minio.Admin;
+using Minio.Admin.DataModel.Args;
 using Xunit.Abstractions;
 
 namespace Minio.XTests;
@@ -11,9 +13,9 @@ public class AdminTest
         this.output = output;
     }
 
-    private const string ENDPOINT = "192.168.100.200:9000";
-    private const string ACCESSKEY = "H0hZ2gb27v0pzlP4tlzd";
-    private const string SECRETKEY = "biFtE6rdAeud0TotDzeTiWHWz1a22YjWYoOSAmsd";
+    private const string ENDPOINT = "192.168.1.221:9000";
+    private const string ACCESSKEY = "admin";
+    private const string SECRETKEY = "admin123456";
 
     private IMinioAdminClient GetClient()
     {
@@ -49,7 +51,26 @@ public class AdminTest
     {
         var c = GetClient();
         return c.SetUserAsync("0pzlP4tlzdH0hZ2gb27v", "TiWHWz1a22YjWYoOSAmsdbiFtE6rdAeud0TotDze");
+       
 
+    }
+
+    [Fact]
+    public async Task CreateServiceAccount()
+    {
+        var c = GetClient();
+        var exp = DateTimeOffset.UtcNow.AddDays(2);
+        var args = new AdminAddServiceAccountArgs()
+            .WithName("nn1")
+            .WithDescription("dd1")
+            .WithExpiration(exp);
+            
+        var rr = await c.AddServiceAccountAsync(args, CancellationToken.None);
+
+        Assert.NotNull(rr);
+        Assert.NotNull(rr.Credentials);
+
+        output.WriteLine(JsonSerializer.Serialize(rr));
     }
  
 }
